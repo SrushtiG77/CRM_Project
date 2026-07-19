@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6 animate-[fadeIn_0.5s_ease-out]">
+
+    <div class="flex justify-between items-center bg-white p-6 rounded-2xl border border-gold-100 shadow-sm">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 mb-1">Store Overview</h1>
+            <p class="text-slate-500">Welcome to your daily summary and analytics.</p>
+        </div>
+        <div class="hidden sm:block text-right">
+            <span
+                class="text-sm font-medium text-gold-600 bg-gold-50 px-3 py-1 rounded-full border border-gold-100">Live
+                System</span>
+            <p class="text-sm text-slate-400 mt-2" id="currentDate"></p>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Total Revenue -->
+        <div
+            class="bg-white border border-gold-100 rounded-2xl p-6 relative overflow-hidden group shadow-sm hover:shadow-md transition-all duration-300">
+            <div
+                class="absolute -right-6 -top-6 w-32 h-32 bg-gold-500/10 rounded-full blur-2xl group-hover:bg-gold-500/20 transition-all duration-500">
+            </div>
+            <div class="flex justify-between items-start mb-4 relative z-10">
+                <div>
+                    <p class="text-slate-500 text-sm font-medium mb-1">Total Revenue</p>
+                    <h3 class="text-3xl font-bold text-slate-900">₹{{ "{:,.2f}".format(total_revenue) }}</h3>
+                </div>
+                <div
+                    class="w-12 h-12 rounded-xl bg-gold-50 text-gold-500 flex items-center justify-center text-xl border border-gold-100">
+                    <i class="fa-solid fa-indian-rupee-sign"></i>
+                </div>
+            </div>
+            <p class="text-sm text-emerald-600 flex items-center gap-1 relative z-10"><i
+                    class="fa-solid fa-arrow-trend-up"></i> Lifetime</p>
+        </div>
+
+        <!-- Total Customers -->
+        <div
+            class="bg-white shadow-sm hover:shadow-md rounded-2xl p-6 hover:-translate-y-1 transition-all duration-300 border-l-4 border-blue-400 border-t border-r border-b border-gray-100">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <p class="text-slate-500 text-sm font-medium mb-1">Total Customers</p>
+                    <h3 class="text-3xl font-bold text-slate-900">{{ total_customers }}</h3>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+            </div>
+            <p class="text-sm text-slate-400 relative z-10">Across all branches</p>
+        </div>
+
+        <!-- Loyal Customers -->
+        <div
+            class="bg-white shadow-sm hover:shadow-md rounded-2xl p-6 hover:-translate-y-1 transition-all duration-300 border-l-4 border-emerald-400 border-t border-r border-b border-gray-100">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <p class="text-slate-500 text-sm font-medium mb-1">Loyal Customers</p>
+                    <h3 class="text-3xl font-bold text-slate-900">{{ loyal_customers }}</h3>
+                </div>
+                <div
+                    class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-heart"></i>
+                </div>
+            </div>
+            <p class="text-sm text-slate-400 relative z-10">Growing community</p>
+        </div>
+
+        <!-- Gold Members -->
+        <div
+            class="bg-white shadow-sm hover:shadow-md rounded-2xl p-6 hover:-translate-y-1 transition-all duration-300 border-l-4 border-gold-400 border-t border-r border-b border-gray-100">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <p class="text-slate-500 text-sm font-medium mb-1">Gold Members</p>
+                    <h3 class="text-3xl font-bold text-slate-900">{{ gold_members }}</h3>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-gold-50 text-gold-500 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-crown"></i>
+                </div>
+            </div>
+            <p class="text-sm text-slate-400 relative z-10">VIP Client base</p>
+        </div>
+    </div>
+
+    <!-- Charts & Top Customers -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Chart -->
+        <div class="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 lg:col-span-2">
+            <h3 class="text-xl font-bold text-slate-900 mb-6">Customer Composition</h3>
+            <div class="h-64 flex justify-center items-center">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Top spenders -->
+        <div class="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 flex flex-col">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-900">Top Customers</h3>
+                <i class="fa-solid fa-award text-gold-500"></i>
+            </div>
+            <div class="space-y-4 flex-1">
+                {% if top_customers %}
+                {% for customer in top_customers %}
+                <div class="flex items-center gap-4 p-3 rounded-xl hover:bg-gold-50 transition-colors cursor-pointer border border-transparent hover:border-gold-100"
+                    onclick="window.location.href='{{ url_for('customers') }}?search={{ customer.phone }}'">
+                    <div
+                        class="w-10 h-10 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-white font-bold shadow-sm shadow-gold-500/20">
+                        {{ customer.name[0] | upper }}
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-slate-800 font-medium">{{ customer.name }}</h4>
+                        <p class="text-xs text-slate-500">{{ customer.category }}</p>
+                    </div>
+                    <div class="text-right">
+                        <h4 class="text-emerald-600 font-bold text-sm">₹{{ "{:,.0f}".format(customer.total_spending) }}
+                        </h4>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center py-10 text-slate-400">
+                    <i class="fa-solid fa-box-open text-3xl mb-3 opacity-50 text-slate-300"></i>
+                    <p>No customers yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Chart.js Setup
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+
+        let totalCustomers = {{ total_customers }};
+        let loyalCount = {{ loyal_customers }};
+        let goldCount = {{ gold_members }};
+        let newCount = totalCustomers - loyalCount - goldCount;
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['New Customers', 'Loyal Customers', 'Gold Members'],
+                datasets: [{
+                    data: [newCount, loyalCount, goldCount],
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.8)', // Blue
+                        'rgba(16, 185, 129, 0.8)', // Emerald
+                        'rgba(215, 148, 39, 0.8)'  // Gold
+                    ],
+                    borderColor: [
+                        'rgba(30, 41, 59, 1)',
+                        'rgba(30, 41, 59, 1)',
+                        'rgba(30, 41, 59, 1)'
+                    ],
+                    borderWidth: 4,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#475569', padding: 20, font: { family: "'Outfit', sans-serif" } }
+                    }
+                }
+            }
+        });
+    });
+</script>
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}

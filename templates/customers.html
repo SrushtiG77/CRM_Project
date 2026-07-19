@@ -1,0 +1,506 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6 animate-[fadeIn_0.5s_ease-out]">
+
+    <div
+        class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-gold-100 shadow-sm">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 mb-1">Customer Directory</h1>
+            <p class="text-slate-500">Manage clients, track loyalty, and add purchases.</p>
+        </div>
+        <div class="flex gap-3 w-full md:w-auto">
+            <form action="{{ url_for('customers') }}" method="GET" class="relative flex-1 md:w-64">
+                <input type="text" name="search" value="{{ search_query or '' }}" placeholder="Search name or phone..."
+                    class="w-full bg-white border border-gold-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 outline-none shadow-inner">
+                <i class="fa-solid fa-search absolute left-3.5 top-3 text-slate-400"></i>
+            </form>
+            <button onclick="openModal('addCustomerModal')"
+                class="bg-gold-500 hover:bg-gold-400 text-white px-4 py-2.5 rounded-xl font-medium shadow-lg shadow-gold-500/30 transition-all hover:-translate-y-0.5 whitespace-nowrap">
+                <i class="fa-solid fa-plus mr-2"></i>New
+            </button>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div
+        class="bg-white shadow-sm hover:shadow-md rounded-2xl border border-gray-100 overflow-hidden transition-all duration-300">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="text-xs text-slate-500 uppercase bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-4 font-medium">Customer View</th>
+                        <th class="px-6 py-4 font-medium">Contact</th>
+                        <th class="px-6 py-4 font-medium">Category</th>
+                        <th class="px-6 py-4 font-medium text-right">Total Spent</th>
+                        <th class="px-6 py-4 font-medium text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for customer in customers %}
+                    <tr class="hover:bg-gold-50/50 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3 cursor-pointer group"
+                                onclick="viewCustomer({{ customer.id }})">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-white font-bold shadow-sm shadow-gold-500/20">
+                                    {{ customer.name[0] | upper }}
+                                </div>
+                                <div>
+                                    <h4 class="text-slate-800 font-medium group-hover:text-gold-600 transition-colors">
+                                        {{ customer.name }}</h4>
+                                    <p class="text-xs text-slate-400">ID: #{{ '%04d' % customer.id }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="text-slate-600"><i class="fa-solid fa-phone text-xs mr-2 text-slate-400"></i>{{
+                                customer.phone }}</p>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% set cat_class = 'category-badge-' + customer.category.split(' ')[0] %}
+                            <span
+                                class="px-3 py-1 rounded-full text-xs font-medium {{ cat_class }} flex items-center inline-flex gap-1.5 w-max">
+                                {% if customer.category == 'Gold Member' %}<i
+                                    class="fa-solid fa-crown text-gold-500"></i>
+                                {% elif customer.category == 'Loyal Customer' %}<i
+                                    class="fa-solid fa-heart text-emerald-500"></i>
+                                {% else %}<i class="fa-solid fa-star text-blue-500"></i>{% endif %}
+                                {{ customer.category }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-right font-bold text-emerald-600">
+                            ₹{{ "{:,.0f}".format(customer.total_spending) }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex justify-center gap-2">
+                                <button
+                                    onclick="openPurchaseModal({{ customer.id }}, '{{ customer.name|replace('\'', '\\\'') }}', '{{ customer.category }}')"
+                                    class="p-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
+                                    title="Add Purchase">
+                                    <i class="fa-solid fa-cart-plus"></i>
+                                </button>
+                                <button
+                                    onclick="openNoteModal({{ customer.id }}, '{{ customer.name|replace('\'', '\\\'') }}')"
+                                    class="p-2 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 rounded-lg transition-colors"
+                                    title="Add Note">
+                                    <i class="fa-solid fa-comment-medical"></i>
+                                </button>
+                                <form action="{{ url_for('delete_customer', id=customer.id) }}" method="POST"
+                                    onsubmit="return confirm('Delete this customer?');" class="inline">
+                                    <button type="submit"
+                                        class="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                                        title="Delete">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-10 text-center text-gray-500">
+                            <i class="fa-solid fa-folder-open text-3xl mb-3 opacity-50"></i>
+                            <p>No customers found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Customer Modal -->
+<div id="addCustomerModal" class="modal">
+    <div class="modal-content bg-white border border-gray-100 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
+            <h3 class="text-xl font-bold text-slate-900">Add New Customer</h3>
+            <button onclick="closeModal('addCustomerModal')" class="text-slate-400 hover:text-slate-700"><i
+                    class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form action="{{ url_for('customers') }}" method="POST" class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                    <input type="text" name="name" required
+                        class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-slate-800 focus:ring-2 focus:ring-gold-500/50 outline-none shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+                    <input type="text" name="phone" required
+                        class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-slate-800 focus:ring-2 focus:ring-gold-500/50 outline-none shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Email (Optional)</label>
+                    <input type="email" name="email"
+                        class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-slate-800 focus:ring-2 focus:ring-gold-500/50 outline-none shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Total Spent (₹)</label>
+                    <input type="number" step="0.01" name="total_spending" placeholder="Pre-existing amount (Optional)"
+                        class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-emerald-600 focus:ring-2 focus:ring-gold-500/50 outline-none shadow-sm">
+                    <p class="text-xs text-slate-500 mt-1">Category is auto-assigned based on spending.</p>
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Address</label>
+                    <textarea name="address" rows="2"
+                        class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-slate-800 focus:ring-2 focus:ring-gold-500/50 outline-none shadow-sm"></textarea>
+                </div>
+            </div>
+            <div class="pt-4 flex justify-end gap-3">
+                <button type="button" onclick="closeModal('addCustomerModal')"
+                    class="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-gray-100 transition-colors">Cancel</button>
+                <button type="submit"
+                    class="bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-white px-6 py-2 rounded-xl font-medium shadow-md shadow-gold-500/20 transition-all transform hover:-translate-y-0.5">Save
+                    Customer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Purchase Modal -->
+<div id="addPurchaseModal" class="modal">
+    <div class="modal-content bg-white border border-gray-100 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
+            <h3 class="text-xl font-bold text-slate-900">Record Purchase for <span id="purchaseCustomerName"
+                    class="text-gold-600"></span></h3>
+            <button onclick="closeModal('addPurchaseModal')" class="text-slate-400 hover:text-slate-700"><i
+                    class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+
+        <!-- Active Benefits Banner (Dynamic) -->
+        <div id="benefitsBanner"
+            class="hidden px-6 py-3 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100 shadow-sm">
+            <p class="text-sm text-emerald-700 font-medium flex items-center gap-2"><i class="fa-solid fa-gift"></i>
+                <span id="benefitsText"></span></p>
+        </div>
+
+        <form id="purchaseForm" method="POST" class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Product Description</label>
+                <input type="text" name="product_name" list="productOptions" required
+                    placeholder="e.g. Necklace, Earrings..."
+                    class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-slate-800 focus:ring-2 focus:ring-gold-500/50 outline-none shadow-sm">
+                <datalist id="productOptions">
+                    <option value="Necklace">
+                    <option value="Earrings">
+                    <option value="Ring">
+                    <option value="Bangles">
+                    <option value="Bracelet">
+                    <option value="Pendant">
+                    <option value="Chain">
+                    <option value="Mangalsutra">
+                    <option value="Anklet">
+                    <option value="Gold Coin">
+                    <option value="Silver Coin">
+                </datalist>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Gold Purity</label>
+                    <select name="purity" id="purchasePurity" onchange="calculateLivePrice()"
+                        class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-slate-800 focus:ring-2 focus:ring-gold-500/50 outline-none shadow-sm">
+                        <option value="22K">22K</option>
+                        <option value="24K">24K</option>
+                        <option value="18K">18K</option>
+                        <option value="Silver">Silver</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Weight (g)</label>
+                    <input type="number" step="0.01" name="weight" id="purchaseWeight" oninput="calculateLivePrice()"
+                        required
+                        class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-slate-800 focus:ring-2 focus:ring-gold-500/50 outline-none shadow-sm">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1 flex justify-between items-end">
+                    Total Price (₹)
+                    <span id="rateIndicator" class="text-xs text-yellow-600 font-normal"><i
+                            class="fa-solid fa-spinner fa-spin mr-1"></i>Loading live market rate...</span>
+                </label>
+                <input type="number" step="0.01" name="price" id="purchasePrice" required
+                    class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xl font-bold text-emerald-600 focus:ring-2 focus:ring-gold-500/50 outline-none transition-all shadow-inner">
+            </div>
+            <div class="pt-4 flex justify-end gap-3">
+                <button type="button" onclick="closeModal('addPurchaseModal')"
+                    class="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-gray-100 transition-colors">Cancel</button>
+                <button type="submit"
+                    class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white px-6 py-2 rounded-xl font-medium shadow-md shadow-emerald-500/20 transition-all"><i
+                        class="fa-solid fa-check mr-2"></i>Complete</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Note Modal -->
+<div id="addNoteModal" class="modal">
+    <div class="modal-content bg-white border border-gray-100 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
+            <h3 class="text-xl font-bold text-slate-900">Engagement Note</h3>
+            <button onclick="closeModal('addNoteModal')" class="text-slate-400 hover:text-slate-700"><i
+                    class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="noteForm" method="POST" class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Notes for <span id="noteCustomerName"
+                        class="text-gold-600"></span></label>
+                <textarea name="content" rows="4" required
+                    placeholder="Interested in wedding jewelry, lightweight designs..."
+                    class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-slate-800 focus:ring-2 focus:ring-gold-500/50 outline-none shadow-sm"></textarea>
+            </div>
+            <div class="pt-2 flex justify-end gap-3">
+                <button type="button" onclick="closeModal('addNoteModal')"
+                    class="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-gray-100 transition-colors">Cancel</button>
+                <button type="submit"
+                    class="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-500 text-white px-6 py-2 rounded-xl font-medium shadow-md shadow-purple-500/20 transition-all">Save
+                    Note</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Customer Profile Modal -->
+<div id="profileModal" class="modal">
+    <div
+        class="modal-content bg-white border border-gray-100 w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div
+            class="flex justify-between items-center p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white relative overflow-hidden">
+            <div class="absolute right-0 top-0 w-64 h-64 bg-gold-500/5 rounded-full blur-3xl"></div>
+            <div class="flex items-center gap-4 relative z-10">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-white text-2xl font-bold shadow-md shadow-gold-500/20"
+                    id="profAvatar">
+                    A
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900" id="profName">Customer Name</h2>
+                    <div class="flex gap-3 mt-1 items-center">
+                        <span id="profCategory"
+                            class="px-3 py-0.5 rounded-full text-xs font-medium bg-gold-50 text-gold-600 border border-gold-200">Category</span>
+                        <span class="text-sm text-slate-500" id="profContact">Phone &bull; Email</span>
+                    </div>
+                </div>
+            </div>
+            <button onclick="closeModal('profileModal')"
+                class="text-slate-400 hover:text-slate-800 relative z-10 w-10 h-10 rounded-full bg-white flex items-center justify-center border border-gray-200 shadow-sm transition-all hover:bg-red-50 hover:text-red-500 hover:border-red-100"><i
+                    class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+
+        <div class="p-6 overflow-y-auto flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50">
+            <!-- Left col: Info & Notes -->
+            <div class="space-y-6">
+                <!-- Spending card -->
+                <div
+                    class="bg-gradient-to-b from-white to-gold-50/30 border border-gold-100 p-5 rounded-2xl text-center shadow-sm">
+                    <p class="text-xs text-gold-600 font-medium uppercase tracking-wider mb-1">Lifetime Value</p>
+                    <h3 class="text-3xl font-bold text-slate-900 mb-2" id="profTotal">₹0</h3>
+                    <div id="profBenefits"
+                        class="text-xs py-1.5 px-2 bg-white rounded-lg text-emerald-600 inline-block border border-emerald-100 shadow-inner">
+                        <i class="fa-solid fa-gem mr-1"></i>Loyalty Benefits Active
+                    </div>
+                </div>
+
+                <!-- Details -->
+                <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                    <h4 class="text-slate-800 font-medium mb-4 flex items-center gap-2"><i
+                            class="fa-solid fa-address-card text-slate-400"></i> Details</h4>
+                    <div class="space-y-3 text-sm">
+                        <div><span class="text-slate-400 block text-xs">Address</span> <span class="text-slate-700"
+                                id="profAddress">N/A</span></div>
+                        <div><span class="text-slate-400 block text-xs">Joined</span> <span class="text-slate-700"
+                                id="profJoined">N/A</span></div>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div
+                    class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col min-h-[250px]">
+                    <div class="flex justify-between items-center mb-4">
+                        <h4 class="text-slate-800 font-medium flex items-center gap-2"><i
+                                class="fa-solid fa-clipboard-list text-slate-400"></i> Notes</h4>
+                    </div>
+                    <div id="profNotesList" class="space-y-3 flex-1 overflow-y-auto pr-2">
+                        <!-- populated via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right col: Purchase History -->
+            <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col">
+                <h4 class="text-slate-800 font-medium mb-4 flex items-center gap-2"><i
+                        class="fa-solid fa-clock-rotate-left text-slate-400"></i> Purchase History</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="text-xs text-slate-400 uppercase border-b border-gray-100">
+                            <tr>
+                                <th class="py-3 font-medium">Date</th>
+                                <th class="py-3 font-medium">Item</th>
+                                <th class="py-3 font-medium">Specs</th>
+                                <th class="py-3 font-medium text-right">Price</th>
+                            </tr>
+                        </thead>
+                        <tbody id="profPurchaseList" class="divide-y divide-gray-100">
+                            <!-- populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentLiveRates = null;
+
+    async function fetchLiveRates() {
+        const indicator = document.getElementById('rateIndicator');
+        try {
+            const res = await fetch('/api/gold_rate');
+            const data = await res.json();
+            if (data.status === 'success') {
+                currentLiveRates = data.rates;
+                indicator.innerHTML = '<i class="fa-solid fa-bolt text-yellow-400 mr-1"></i>Live Rates Active';
+                indicator.classList.replace('text-yellow-500', 'text-emerald-400');
+                calculateLivePrice();
+            } else {
+                indicator.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i>Rate Unavailable';
+                indicator.classList.replace('text-yellow-500', 'text-red-400');
+            }
+        } catch (e) {
+            indicator.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i>Rate Unavailable';
+            indicator.classList.replace('text-yellow-500', 'text-red-400');
+            console.error(e);
+        }
+    }
+
+    function calculateLivePrice() {
+        if (!currentLiveRates) return;
+        const purity = document.getElementById('purchasePurity').value;
+        const weight = parseFloat(document.getElementById('purchaseWeight').value);
+        const priceInput = document.getElementById('purchasePrice');
+
+        if (!isNaN(weight) && weight > 0 && currentLiveRates[purity]) {
+            const rate = currentLiveRates[purity];
+            const total = rate * weight;
+            priceInput.value = total.toFixed(2);
+            // Flash effect for auto-calc
+            priceInput.classList.add('bg-emerald-900/30');
+            setTimeout(() => priceInput.classList.remove('bg-emerald-900/30'), 300);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchLiveRates);
+
+    function openPurchaseModal(id, name, cat) {
+        document.getElementById('purchaseCustomerName').innerText = name;
+        document.getElementById('purchaseForm').action = "/customer/" + id + "/purchase";
+
+        const banner = document.getElementById('benefitsBanner');
+        const text = document.getElementById('benefitsText');
+
+        if (cat === 'Gold Member') {
+            banner.classList.remove('hidden');
+            banner.classList.replace('from-emerald-50', 'from-gold-50');
+            banner.classList.replace('border-emerald-100', 'border-gold-100');
+            text.innerHTML = "Gold Member Perks Active: Low Making Cost, Special Discounts & Priority Early Delivery.";
+            text.className = "text-gold-600 font-medium flex items-center gap-2";
+        } else if (cat === 'Loyal Customer') {
+            banner.classList.remove('hidden');
+            banner.classList.replace('from-gold-50', 'from-emerald-50');
+            banner.classList.replace('border-gold-100', 'border-emerald-100');
+            text.innerHTML = "Loyal Customer: 'Loyalty Reward' points will be added.";
+            text.className = "text-emerald-600 font-medium flex items-center gap-2";
+        } else {
+            banner.classList.add('hidden');
+        }
+
+        openModal('addPurchaseModal');
+    }
+
+    function openNoteModal(id, name) {
+        document.getElementById('noteCustomerName').innerText = name;
+        document.getElementById('noteForm').action = "/customer/" + id + "/note";
+        openModal('addNoteModal');
+    }
+
+    async function viewCustomer(id) {
+        try {
+            const res = await fetch('/api/customer/' + id);
+            const data = await res.json();
+
+            // Populate Details
+            document.getElementById('profAvatar').innerText = data.name.charAt(0).toUpperCase();
+            document.getElementById('profName').innerText = data.name;
+            document.getElementById('profContact').innerHTML = `<i class="fa-solid fa-phone text-xs"></i> ${data.phone} ${data.email ? '&bull; <i class="fa-solid fa-envelope text-xs"></i> ' + data.email : ''}`;
+            document.getElementById('profAddress').innerText = data.address || 'Not provided';
+            document.getElementById('profJoined').innerText = data.created_at;
+            document.getElementById('profTotal').innerText = `₹${data.total_spending.toLocaleString()}`;
+
+            // Badge & Benefits
+            const catBadge = document.getElementById('profCategory');
+            catBadge.innerText = data.category;
+            catBadge.className = "px-3 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1.5 " +
+                (data.category === 'Gold Member' ? 'bg-gold-400/20 text-gold-400 border-gold-400/30' :
+                    data.category === 'Loyal Customer' ? 'bg-emerald-400/20 text-emerald-400 border-emerald-400/30' :
+                        'bg-blue-400/20 text-blue-400 border-blue-400/30');
+
+            const ben = document.getElementById('profBenefits');
+            if (data.category === 'Gold Member') {
+                ben.innerHTML = '<i class="fa-solid fa-crown mr-1"></i>Low Making Cost • Special Discounts • Early Delivery';
+                ben.style.display = 'inline-block';
+            } else if (data.category === 'Loyal Customer') {
+                ben.innerHTML = '<i class="fa-solid fa-gift mr-1"></i>Earns Loyalty Rewards';
+                ben.style.display = 'inline-block';
+            } else {
+                ben.style.display = 'none';
+            }
+
+            // Notes
+            const notesEl = document.getElementById('profNotesList');
+            if (data.notes.length === 0) {
+                notesEl.innerHTML = '<p class="text-sm text-slate-400 italic">No notes recorded yet.</p>';
+            } else {
+                notesEl.innerHTML = data.notes.map(n => `
+                    <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 relative shadow-inner">
+                        <p class="text-xs text-slate-400 mb-1">${n.date}</p>
+                        <p class="text-sm text-slate-700 leading-relaxed">${n.content}</p>
+                    </div>
+                `).join('');
+            }
+
+            // Purchases
+            const purchEl = document.getElementById('profPurchaseList');
+            if (data.purchases.length === 0) {
+                purchEl.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-slate-400 italic">No purchases yet.</td></tr>';
+            } else {
+                purchEl.innerHTML = data.purchases.map(p => `
+                    <tr class="hover:bg-gold-50/50 transition-colors border-b border-gray-100">
+                        <td class="py-3 text-slate-500">${p.date}</td>
+                        <td class="py-3 text-slate-800 font-medium">${p.product_name}</td>
+                        <td class="py-3 text-slate-500 text-xs"><span class="bg-gray-100 px-2 py-0.5 rounded text-slate-600 mr-1">${p.purity}</span> ${p.weight}g</td>
+                        <td class="py-3 text-right font-bold text-emerald-600">₹${p.price.toLocaleString()}</td>
+                    </tr>
+                `).join('');
+            }
+
+            openModal('profileModal');
+        } catch (e) {
+            alert('Error loading profile: ' + e);
+        }
+    }
+</script>
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
